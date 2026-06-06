@@ -1,167 +1,125 @@
-from flask import Flask, render_template, request, redirect, session
+from flask import Flask, render_template, request, redirect
 import sqlite3
 from datetime import date
 
 app = Flask(__name__)
-app.secret_key = "attendance123"
 
-# Database connection
-db = sqlite3.connect("attendance.db", check_same_thread=False)
-cursor = db.cursor()
+def get_db():
+    conn = sqlite3.connect('attendance.db')
+    conn.row_factory = sqlite3.Row
+    return conn
 
-# ---------------- CREATE TABLES ---------------- #
+# Create Tables
+conn = get_db()
 
-cursor.execute("""
+conn.execute('''
 CREATE TABLE IF NOT EXISTS students(
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT,
-    email TEXT,
-    password TEXT
+id INTEGER PRIMARY KEY AUTOINCREMENT,
+name TEXT,
+email TEXT
 )
-""")
+''')
 
-cursor.execute("""
+conn.execute('''
 CREATE TABLE IF NOT EXISTS attendance(
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    student_id INTEGER,
-    attendance_date TEXT,
-    status TEXT
+id INTEGER PRIMARY KEY AUTOINCREMENT,
+student_id INTEGER,
+att_date TEXT,
+status TEXT
 )
-""")
+''')
 
-db.commit()
-
-# ---------------- HOME ---------------- #
+conn.commit()
 
 @app.route('/')
 def home():
     return render_template("index.html")
 
-# ---------------- REGISTER ---------------- #
-
-@app.route('/register', methods=['GET', 'POST'])
+@app.route('/register', methods=['GET','POST'])
 def register():
 
     if request.method == 'POST':
+
         name = request.form['name']
         email = request.form['email']
-        password = request.form['password']
 
-        cursor.execute("""
-        INSERT INTO students(name, email, password)
-        VALUES (?, ?, ?)
-        """, (name, email, password))
+        conn = get_db()
 
-        db.commit()
-        return redirect('/login')
+        conn.execute(
+            "INSERT INTO students(name,email) VALUES (?,?)",
+            (name,email)
+        )
+
+        conn.commit()
+
+        return redirect('/students')
 
     return render_template("register.html")
 
-# ---------------- LOGIN ---------------- #
+@app.route('/students')
+def students():
 
-@app.route('/login', methods=['GET', 'POST'])
-def login():
+    conn = get_db()
 
-    if request.method == 'POST':
-        email = request.form['email']
-        password = request.form['password']
-
-        cursor.execute("""
-        SELECT * FROM students
-        WHERE email=? AND password=?
-        """, (email, password))
-
-        user = cursor.fetchone()
-
-        if user:
-            session['student_id'] = user[0]
-            session['name'] = user[1]
-            return redirect('/dashboard')
-
-        return "Invalid Credentials"
-
-    return render_template("login.html")
-
-# ---------------- DASHBOARD ---------------- #
-
-@app.route('/dashboard')
-def dashboard():
-
-    if 'student_id' not in session:
-        return redirect('/login')
-
-    cursor.execute("""
-    SELECT attendance_date, status
-    FROM attendance
-    WHERE student_id=?
-    ORDER BY attendance_date DESC
-    """, (session['student_id'],))
-
-    records = cursor.fetchall()
+    data = conn.execute(
+        "SELECT * FROM students"
+    ).fetchall()
 
     return render_template(
-        "dashboard.html",
-        name=session['name'],
-        records=records
+        "students.html",
+        students=data
     )
 
-# ---------------- MARK ATTENDANCE ---------------- #
+@app.route('/attendance')
+def attendance():
 
-@app.route('/mark')
-def mark():
+    conn = get_db()
 
-    if 'student_id' not in session:
-        return redirect('/login')
+    students = conn.execute(
+        "SELECT * FROM students"
+    ).fetchall()
 
-    student_id = session['student_id']
-    today = str(date.today())
+    return render_template(
+        "attendance.html",
+        students=students
+    )
 
-    # Prevent duplicate attendance for same day
-    cursor.execute("""
-    SELECT * FROM attendance
-    WHERE student_id=? AND attendance_date=?
-    """, (student_id, today))
+@app.route('/mark/<int:id>')
+def mark(id):
 
-    already_marked = cursor.fetchone()
+    conn = get_db()
 
-    if not already_marked:
-        cursor.execute("""
-        INSERT INTO attendance(student_id, attendance_date, status)
-        VALUES (?, ?, ?)
-        """, (student_id, today, "Present"))
+    conn.execute(
+        '''
+        INSERT INTO attendance
+        (student_id,att_date,status)
+        VALUES (?,?,?)
+        ''',
+        (id,str(date.today()),"Present")
+    )
 
-        db.commit()
+    conn.commit()
 
-    return redirect('/dashboard')
+    return redirect('/attendance')
 
-# ---------------- ALL ATTENDANCE (ADMIN PAGE) ---------------- #
+@app.route('/reports')
+def reports():
 
-@app.route('/all_attendance')
-def all_attendance():
+    conn = get_db()
 
-    cursor.execute("""
+    data = conn.execute('''
     SELECT students.name,
-           students.email,
-           attendance.attendance_date,
-           attendance.status
-    FROM attendance
-    JOIN students
-    ON attendance.student_id = students.id
-    ORDER BY attendance.attendance_date DESC
-    """)
+    COUNT(attendance.id) as total
+    FROM students
+    LEFT JOIN attendance
+    ON students.id = attendance.student_id
+    GROUP BY students.id
+    ''').fetchall()
 
-    records = cursor.fetchall()
-
-    return render_template("all_attendance.html", records=records)
-
-# ---------------- LOGOUT ---------------- #
-
-@app.route('/logout')
-def logout():
-    session.clear()
-    return redirect('/')
-
-# ---------------- RUN APP ---------------- #
+    return render_template(
+        "reports.html",
+        reports=data
+    )
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(debug=True)
