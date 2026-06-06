@@ -17,15 +17,15 @@
         Admin Dashboard
     </h1>
 
-    <!-- Summary Cards -->
+    <!-- Statistics Cards -->
 
     <div class="row mb-4">
 
-        <div class="col-md-6">
+        <div class="col-md-3">
 
-            <div class="card shadow p-3 text-center">
+            <div class="card shadow text-center p-3">
 
-                <h4>Total Students</h4>
+                <h5>Total Students</h5>
 
                 <h1>{{total_students}}</h1>
 
@@ -33,13 +33,37 @@
 
         </div>
 
-        <div class="col-md-6">
+        <div class="col-md-3">
 
-            <div class="card shadow p-3 text-center">
+            <div class="card shadow text-center p-3">
 
-                <h4>Total Attendance Records</h4>
+                <h5>Present Today</h5>
 
-                <h1>{{total_attendance}}</h1>
+                <h1>{{present_today}}</h1>
+
+            </div>
+
+        </div>
+
+        <div class="col-md-3">
+
+            <div class="card shadow text-center p-3">
+
+                <h5>Absent Today</h5>
+
+                <h1>{{absent_today}}</h1>
+
+            </div>
+
+        </div>
+
+        <div class="col-md-3">
+
+            <div class="card shadow text-center p-3">
+
+                <h5>Attendance %</h5>
+
+                <h1>{{attendance_percentage}}%</h1>
 
             </div>
 
@@ -47,7 +71,37 @@
 
     </div>
 
-    <!-- Students Table -->
+    <!-- Summary -->
+
+    <div class="alert alert-success">
+
+        <h5>Today's Summary</h5>
+
+        <p>
+
+            Total Students :
+            <b>{{total_students}}</b>
+
+            <br>
+
+            Present Today :
+            <b>{{present_today}}</b>
+
+            <br>
+
+            Absent Today :
+            <b>{{absent_today}}</b>
+
+            <br>
+
+            Attendance Percentage :
+            <b>{{attendance_percentage}}%</b>
+
+        </p>
+
+    </div>
+
+    <!-- Registered Students -->
 
     <div class="card shadow p-3 mb-4">
 
@@ -89,9 +143,9 @@
 
     </div>
 
-    <!-- Attendance Table -->
+    <!-- Attendance Records -->
 
-    <div class="card shadow p-3">
+    <div class="card shadow p-3 mb-4">
 
         <h3 class="mb-3">
             Attendance Records
@@ -118,19 +172,25 @@
                 <tr>
 
                     <td>{{a.name}}</td>
+
                     <td>{{a.att_date}}</td>
+
                     <td>
 
                         {% if a.status == "Present" %}
 
                         <span class="badge bg-success">
+
                             Present
+
                         </span>
 
                         {% else %}
 
                         <span class="badge bg-danger">
+
                             Absent
+
                         </span>
 
                         {% endif %}
@@ -147,10 +207,15 @@
 
     </div>
 
-    <div class="text-center mt-4">
+    <!-- Logout -->
 
-        <a href="/logout" class="btn btn-danger">
-            Logout
+    <div class="text-center">
+
+        <a href="/logout"
+           class="btn btn-danger">
+
+           Logout
+
         </a>
 
     </div>
