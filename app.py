@@ -5,11 +5,12 @@ from datetime import date
 app = Flask(__name__)
 app.secret_key = "attendance123"
 
-# Database connection
+# ---------------- DATABASE ---------------- #
+
 db = sqlite3.connect("attendance.db", check_same_thread=False)
 cursor = db.cursor()
 
-# ---------------- CREATE TABLES ---------------- #
+# ---------------- TABLES ---------------- #
 
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS students(
@@ -28,6 +29,23 @@ CREATE TABLE IF NOT EXISTS attendance(
     status TEXT
 )
 """)
+
+# ---------------- ADMIN TABLE ---------------- #
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS admin(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT,
+    password TEXT
+)
+""")
+
+# create default admin (only once)
+cursor.execute("SELECT * FROM admin")
+if not cursor.fetchone():
+    cursor.execute("INSERT INTO admin(username, password) VALUES (?,?)",
+                   ("admin", "admin123"))
+    db.commit()
 
 db.commit()
 
@@ -76,11 +94,59 @@ def login():
         if user:
             session['student_id'] = user[0]
             session['name'] = user[1]
+            session['role'] = "student"
             return redirect('/dashboard')
 
         return "Invalid Credentials"
 
     return render_template("login.html")
+
+# ---------------- ADMIN LOGIN ---------------- #
+
+@app.route('/admin', methods=['GET', 'POST'])
+def admin():
+
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+
+        cursor.execute("""
+        SELECT * FROM admin
+        WHERE username=? AND password=?
+        """, (username, password))
+
+        admin = cursor.fetchone()
+
+        if admin:
+            session['admin'] = True
+            return redirect('/admin_dashboard')
+
+        return "Invalid Admin Login"
+
+    return render_template("admin.html")
+
+# ---------------- ADMIN DASHBOARD ---------------- #
+
+@app.route('/admin_dashboard')
+def admin_dashboard():
+
+    if 'admin' not in session:
+        return redirect('/admin')
+
+    cursor.execute("SELECT id, name, email FROM students")
+    students = cursor.fetchall()
+
+    cursor.execute("""
+    SELECT students.name, students.email, attendance.attendance_date, attendance.status
+    FROM attendance
+    JOIN students ON attendance.student_id = students.id
+    ORDER BY attendance.attendance_date DESC
+    """)
+    attendance = cursor.fetchall()
+
+    return render_template("admin_dashboard.html",
+                           students=students,
+                           attendance=attendance)
 
 # ---------------- DASHBOARD ---------------- #
 
@@ -99,11 +165,9 @@ def dashboard():
 
     records = cursor.fetchall()
 
-    return render_template(
-        "dashboard.html",
-        name=session['name'],
-        records=records
-    )
+    return render_template("dashboard.html",
+                           name=session['name'],
+                           records=records)
 
 # ---------------- MARK ATTENDANCE ---------------- #
 
@@ -116,43 +180,21 @@ def mark():
     student_id = session['student_id']
     today = str(date.today())
 
-    # Prevent duplicate attendance for same day
     cursor.execute("""
     SELECT * FROM attendance
     WHERE student_id=? AND attendance_date=?
     """, (student_id, today))
 
-    already_marked = cursor.fetchone()
+    already = cursor.fetchone()
 
-    if not already_marked:
+    if not already:
         cursor.execute("""
         INSERT INTO attendance(student_id, attendance_date, status)
         VALUES (?, ?, ?)
         """, (student_id, today, "Present"))
-
         db.commit()
 
     return redirect('/dashboard')
-
-# ---------------- ALL ATTENDANCE (ADMIN PAGE) ---------------- #
-
-@app.route('/all_attendance')
-def all_attendance():
-
-    cursor.execute("""
-    SELECT students.name,
-           students.email,
-           attendance.attendance_date,
-           attendance.status
-    FROM attendance
-    JOIN students
-    ON attendance.student_id = students.id
-    ORDER BY attendance.attendance_date DESC
-    """)
-
-    records = cursor.fetchall()
-
-    return render_template("all_attendance.html", records=records)
 
 # ---------------- LOGOUT ---------------- #
 
@@ -161,7 +203,7 @@ def logout():
     session.clear()
     return redirect('/')
 
-# ---------------- RUN APP ---------------- #
+# ---------------- RUN ---------------- #
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(debug=True)
