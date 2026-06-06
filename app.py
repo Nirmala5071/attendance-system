@@ -1,218 +1,176 @@
-from flask import Flask, render_template, request, redirect, session
-import sqlite3
-from datetime import date
-import os
+from flask import Flask, render_template_string, request, redirect, session
+from flask_sqlalchemy import SQLAlchemy
+from datetime import datetime
 
 app = Flask(__name__)
-app.secret_key = "attendance123"
+app.secret_key = "secretkey"
 
-# ---------------- DATABASE ---------------- #
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///attendance.db"
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-db = sqlite3.connect(os.path.join(BASE_DIR, "attendance.db"), check_same_thread=False)
-cursor = db.cursor()
+db = SQLAlchemy(app)
 
-# ---------------- TABLES ---------------- #
+# ---------------- DATABASE MODELS ----------------
 
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS students(
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT,
-    email TEXT,
-    password TEXT
-)
-""")
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100))
+    username = db.Column(db.String(100), unique=True)
+    password = db.Column(db.String(100))
+    role = db.Column(db.String(20), default="student")  # admin/student
 
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS attendance(
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    student_id INTEGER,
-    attendance_date TEXT,
-    status TEXT
-)
-""")
 
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS admin(
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT,
-    password TEXT
-)
-""")
+class Attendance(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer)
+    date = db.Column(db.String(50))
 
-# default admin
-cursor.execute("SELECT * FROM admin")
-if not cursor.fetchone():
-    cursor.execute("INSERT INTO admin(username, password) VALUES (?,?)",
-                   ("admin", "admin123"))
-    db.commit()
 
-db.commit()
-
-# ---------------- HOME ---------------- #
-
-@app.route('/')
+# ---------------- HOME ----------------
+@app.route("/")
 def home():
-    return render_template("index.html")
+    return redirect("/login")
 
-# ---------------- REGISTER ---------------- #
 
-@app.route('/register', methods=['GET', 'POST'])
+# ---------------- REGISTER ----------------
+@app.route("/register", methods=["GET", "POST"])
 def register():
+    if request.method == "POST":
+        user = User(
+            name=request.form["name"],
+            username=request.form["username"],
+            password=request.form["password"],
+            role="student"
+        )
+        db.session.add(user)
+        db.session.commit()
+        return redirect("/login")
 
-    if request.method == 'POST':
-        name = request.form['name']
-        email = request.form['email']
-        password = request.form['password']
-
-        cursor.execute("""
-        INSERT INTO students(name, email, password)
-        VALUES (?, ?, ?)
-        """, (name, email, password))
-
-        db.commit()
-        return redirect('/login')
-
-    return render_template("register.html")
-
-# ---------------- STUDENT LOGIN ---------------- #
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-
-    if request.method == 'POST':
-        email = request.form['email']
-        password = request.form['password']
-
-        cursor.execute("""
-        SELECT * FROM students
-        WHERE email=? AND password=?
-        """, (email, password))
-
-        user = cursor.fetchone()
-
-        if user:
-            session['student_id'] = user[0]
-            session['name'] = user[1]
-            return redirect('/dashboard')
-
-        return "Invalid Credentials"
-
-    return render_template("login.html")
-
-# ---------------- ADMIN LOGIN ---------------- #
-
-@app.route('/admin', methods=['GET', 'POST'])
-def admin():
-
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-
-        cursor.execute("""
-        SELECT * FROM admin
-        WHERE username=? AND password=?
-        """, (username, password))
-
-        admin = cursor.fetchone()
-
-        if admin:
-            session['admin'] = True
-            return redirect('/admin_dashboard')
-
-        return "Invalid Admin Login"
-
-    return render_template("admin.html")
-
-# ---------------- STUDENT DASHBOARD ---------------- #
-
-@app.route('/dashboard')
-def dashboard():
-
-    if 'student_id' not in session:
-        return redirect('/login')
-
-    cursor.execute("""
-    SELECT attendance_date, status
-    FROM attendance
-    WHERE student_id=?
-    ORDER BY attendance_date DESC
-    """, (session['student_id'],))
-
-    records = cursor.fetchall()
-
-    return render_template("dashboard.html",
-                           name=session['name'],
-                           records=records)
-
-# ---------------- MARK ATTENDANCE ---------------- #
-
-@app.route('/mark')
-def mark():
-
-    if 'student_id' not in session:
-        return redirect('/login')
-
-    student_id = session['student_id']
-    today = str(date.today())
-
-    cursor.execute("""
-    SELECT * FROM attendance
-    WHERE student_id=? AND attendance_date=?
-    """, (student_id, today))
-
-    if not cursor.fetchone():
-        cursor.execute("""
-        INSERT INTO attendance(student_id, attendance_date, status)
-        VALUES (?, ?, ?)
-        """, (student_id, today, "Present"))
-        db.commit()
-
-    return redirect('/dashboard')
-
-# ---------------- ADMIN DASHBOARD ---------------- #
-
-@app.route('/admin_dashboard')
-def admin_dashboard():
-
-    if 'admin' not in session:
-        return redirect('/admin')
-
-    cursor.execute("SELECT id, name, email FROM students")
-    students = cursor.fetchall()
-
-    return render_template("admin_dashboard.html", students=students)
-
-# ---------------- FULL ATTENDANCE VIEW (IMPORTANT) ---------------- #
-
-@app.route('/admin_attendance')
-def admin_attendance():
-
-    if 'admin' not in session:
-        return redirect('/admin')
-
-    cursor.execute("""
-    SELECT students.name,
-           students.email,
-           attendance.attendance_date,
-           attendance.status
-    FROM attendance
-    JOIN students ON attendance.student_id = students.id
-    ORDER BY attendance.attendance_date DESC
+    return render_template_string("""
+        <h2>Register</h2>
+        <form method="post">
+            Name: <input name="name"><br>
+            Username: <input name="username"><br>
+            Password: <input name="password" type="password"><br>
+            <button type="submit">Register</button>
+        </form>
+        <a href="/login">Login</a>
     """)
 
-    records = cursor.fetchall()
 
-    return render_template("admin_attendance.html", records=records)
+# ---------------- LOGIN ----------------
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        user = User.query.filter_by(
+            username=request.form["username"],
+            password=request.form["password"]
+        ).first()
 
-# ---------------- LOGOUT ---------------- #
+        if user:
+            session["user_id"] = user.id
+            session["role"] = user.role
+            return redirect("/dashboard")
 
-@app.route('/logout')
+    return render_template_string("""
+        <h2>Login</h2>
+        <form method="post">
+            Username: <input name="username"><br>
+            Password: <input name="password" type="password"><br>
+            <button type="submit">Login</button>
+        </form>
+        <a href="/register">Register</a>
+    """)
+
+
+# ---------------- DASHBOARD ----------------
+@app.route("/dashboard")
+def dashboard():
+    if "user_id" not in session:
+        return redirect("/login")
+
+    user = User.query.get(session["user_id"])
+
+    return render_template_string("""
+        <h2>Welcome {{user.name}}</h2>
+
+        <a href="/mark">Mark Attendance</a><br>
+
+        {% if session['role'] == 'admin' %}
+            <a href="/admin">Admin Dashboard</a><br>
+        {% endif %}
+
+        <a href="/logout">Logout</a>
+    """, user=user)
+
+
+# ---------------- MARK ATTENDANCE ----------------
+@app.route("/mark")
+def mark():
+    if "user_id" not in session:
+        return redirect("/login")
+
+    today = datetime.now().strftime("%Y-%m-%d")
+
+    existing = Attendance.query.filter_by(
+        user_id=session["user_id"],
+        date=today
+    ).first()
+
+    if not existing:
+        att = Attendance(user_id=session["user_id"], date=today)
+        db.session.add(att)
+        db.session.commit()
+
+    return "Attendance Marked for Today ✔ <br><a href='/dashboard'>Back</a>"
+
+
+# ---------------- ADMIN DASHBOARD (NEW) ----------------
+@app.route("/admin")
+def admin():
+    if "role" not in session or session["role"] != "admin":
+        return "Access Denied"
+
+    users = User.query.all()
+    attendance = Attendance.query.all()
+
+    return render_template_string("""
+        <h2>Admin Dashboard</h2>
+
+        <h3>Registered Users</h3>
+        <ul>
+        {% for u in users %}
+            <li>{{u.id}} - {{u.name}} ({{u.username}}) - {{u.role}}</li>
+        {% endfor %}
+        </ul>
+
+        <h3>Attendance Records</h3>
+        <ul>
+        {% for a in attendance %}
+            <li>User ID: {{a.user_id}} | Date: {{a.date}}</li>
+        {% endfor %}
+        </ul>
+
+        <a href="/dashboard">Back</a>
+    """, users=users, attendance=attendance)
+
+
+# ---------------- LOGOUT ----------------
+@app.route("/logout")
 def logout():
     session.clear()
-    return redirect('/')
+    return redirect("/login")
 
-# ---------------- RUN ---------------- #
 
+# ---------------- CREATE DB ----------------
 if __name__ == "__main__":
+    with app.app_context():
+        db.create_all()
+
+        # create default admin (only once)
+        if not User.query.filter_by(username="admin").first():
+            admin = User(name="Admin", username="admin", password="admin", role="admin")
+            db.session.add(admin)
+            db.session.commit()
+
     app.run(debug=True)
