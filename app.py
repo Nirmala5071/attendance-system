@@ -5,67 +5,91 @@ from datetime import date
 app = Flask(__name__)
 app.secret_key = "attendance123"
 
-# Database Connection
+# ==========================
+# DATABASE CONNECTION
+# ==========================
+
 def get_db():
-    conn = sqlite3.connect('attendance.db')
+
+    conn = sqlite3.connect("attendance.db")
+
     conn.row_factory = sqlite3.Row
+
     return conn
 
-# Create Tables
+
+# ==========================
+# CREATE TABLES
+# ==========================
+
 conn = get_db()
 
-conn.execute('''
+conn.execute("""
 CREATE TABLE IF NOT EXISTS students(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT,
     email TEXT
 )
-''')
+""")
 
-conn.execute('''
+conn.execute("""
 CREATE TABLE IF NOT EXISTS attendance(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     student_id INTEGER,
     att_date TEXT,
     status TEXT
 )
-''')
+""")
 
-conn.execute('''
+conn.execute("""
 CREATE TABLE IF NOT EXISTS admin(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE,
     password TEXT
 )
-''')
+""")
 
 conn.execute("""
 INSERT OR IGNORE INTO admin
 (id,username,password)
-VALUES(1,'admin','admin123')
+VALUES
+(1,'admin','admin123')
 """)
 
 conn.commit()
 
-# Home
+# ==========================
+# HOME PAGE
+# ==========================
+
 @app.route('/')
 def home():
+
     return render_template('index.html')
 
-# Register Student
-@app.route('/register', methods=['GET','POST'])
+
+# ==========================
+# REGISTER STUDENT
+# ==========================
+
+@app.route('/register', methods=['GET', 'POST'])
 def register():
 
     if request.method == 'POST':
 
         name = request.form['name']
+
         email = request.form['email']
 
         conn = get_db()
 
         conn.execute(
-            "INSERT INTO students(name,email) VALUES (?,?)",
+            """
+            INSERT INTO students
             (name,email)
+            VALUES (?,?)
+            """,
+            (name, email)
         )
 
         conn.commit()
@@ -74,14 +98,22 @@ def register():
 
     return render_template('register.html')
 
-# Students List
+
+# ==========================
+# STUDENTS PAGE
+# ==========================
+
 @app.route('/students')
 def students():
 
     conn = get_db()
 
     data = conn.execute(
-        "SELECT * FROM students"
+        """
+        SELECT *
+        FROM students
+        ORDER BY id DESC
+        """
     ).fetchall()
 
     return render_template(
@@ -89,14 +121,22 @@ def students():
         students=data
     )
 
-# Attendance Page
+
+# ==========================
+# ATTENDANCE PAGE
+# ==========================
+
 @app.route('/attendance')
 def attendance():
 
     conn = get_db()
 
     data = conn.execute(
-        "SELECT * FROM students"
+        """
+        SELECT *
+        FROM students
+        ORDER BY name
+        """
     ).fetchall()
 
     return render_template(
@@ -104,62 +144,88 @@ def attendance():
         students=data
     )
 
-# Mark Attendance
+
+# ==========================
+# MARK ATTENDANCE
+# ==========================
+
 @app.route('/mark/<int:id>')
 def mark(id):
 
     conn = get_db()
 
     conn.execute(
-        '''
+        """
         INSERT INTO attendance
         (student_id,att_date,status)
-        VALUES(?,?,?)
-        ''',
-        (id,str(date.today()),"Present")
+        VALUES (?,?,?)
+        """,
+        (
+            id,
+            str(date.today()),
+            "Present"
+        )
     )
 
     conn.commit()
 
     return redirect('/attendance')
 
-# Reports
+
+# ==========================
+# REPORTS PAGE
+# ==========================
+
 @app.route('/reports')
 def reports():
 
     conn = get_db()
 
-    report = conn.execute('''
-    SELECT students.name,
-           COUNT(attendance.id) as total
-    FROM students
-    LEFT JOIN attendance
-    ON students.id=attendance.student_id
-    GROUP BY students.id
-    ''').fetchall()
+    report = conn.execute(
+        """
+        SELECT
+        students.name,
+        COUNT(attendance.id) AS total
+
+        FROM students
+
+        LEFT JOIN attendance
+        ON students.id = attendance.student_id
+
+        GROUP BY students.id
+
+        ORDER BY total DESC
+        """
+    ).fetchall()
 
     return render_template(
         'reports.html',
         reports=report
     )
 
-# Admin Login
-@app.route('/admin', methods=['GET','POST'])
+
+# ==========================
+# ADMIN LOGIN
+# ==========================
+
+@app.route('/admin', methods=['GET', 'POST'])
 def admin():
 
     if request.method == 'POST':
 
         username = request.form['username']
+
         password = request.form['password']
 
         conn = get_db()
 
         admin = conn.execute(
-        '''
-        SELECT * FROM admin
-        WHERE username=? AND password=?
-        ''',
-        (username,password)
+            """
+            SELECT *
+            FROM admin
+            WHERE username=? AND password=?
+            """,
+            (username, password)
         ).fetchone()
 
         if admin:
@@ -170,46 +236,110 @@ def admin():
 
     return render_template('admin_login.html')
 
-# Admin Dashboard
+
+# ==========================
+# ADMIN DASHBOARD
+# ==========================
+
 @app.route('/admin_dashboard')
 def admin_dashboard():
 
     if 'admin' not in session:
+
         return redirect('/admin')
 
     conn = get_db()
 
+    # Total Students
+
     total_students = conn.execute(
-        "SELECT COUNT(*) FROM students"
+        """
+        SELECT COUNT(*)
+        FROM students
+        """
     ).fetchone()[0]
+
+    # Total Attendance
 
     total_attendance = conn.execute(
-        "SELECT COUNT(*) FROM attendance"
+        """
+        SELECT COUNT(*)
+        FROM attendance
+        """
     ).fetchone()[0]
 
+    # Present Today
+
+    present_today = conn.execute(
+        """
+        SELECT COUNT(*)
+        FROM attendance
+        WHERE att_date=?
+        """,
+        (str(date.today()),)
+    ).fetchone()[0]
+
+    # Absent Today
+
+    absent_today = total_students - present_today
+
+    # Percentage
+
+    if total_students > 0:
+
+        attendance_percentage = round(
+            (present_today / total_students) * 100,
+            2
+        )
+
+    else:
+
+        attendance_percentage = 0
+
+    # Students
+
     students = conn.execute(
-        "SELECT * FROM students"
+        """
+        SELECT *
+        FROM students
+        ORDER BY id DESC
+        """
     ).fetchall()
 
-    attendance = conn.execute('''
-    SELECT students.name,
-           attendance.att_date,
-           attendance.status
-    FROM attendance
-    JOIN students
-    ON students.id = attendance.student_id
-    ORDER BY attendance.att_date DESC
-    ''').fetchall()
+    # Attendance Records
+
+    attendance = conn.execute(
+        """
+        SELECT
+        students.name,
+        attendance.att_date,
+        attendance.status
+
+        FROM attendance
+
+        JOIN students
+        ON students.id = attendance.student_id
+
+        ORDER BY attendance.att_date DESC
+        """
+    ).fetchall()
 
     return render_template(
         'admin_dashboard.html',
         total_students=total_students,
         total_attendance=total_attendance,
+        present_today=present_today,
+        absent_today=absent_today,
+        attendance_percentage=attendance_percentage,
         students=students,
         attendance=attendance
     )
 
-# Logout
+
+# ==========================
+# LOGOUT
+# ==========================
+
 @app.route('/logout')
 def logout():
 
@@ -217,5 +347,11 @@ def logout():
 
     return redirect('/')
 
-if __name__ == "__main__":
+
+# ==========================
+# RUN APP
+# ==========================
+
+if __name__ == '__main__':
+
     app.run(debug=True)
