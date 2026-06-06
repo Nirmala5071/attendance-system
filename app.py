@@ -1,13 +1,15 @@
 from flask import Flask, render_template, request, redirect, session
 import sqlite3
 from datetime import date
+import os
 
 app = Flask(__name__)
 app.secret_key = "attendance123"
 
 # ---------------- DATABASE ---------------- #
 
-db = sqlite3.connect("attendance.db", check_same_thread=False)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+db = sqlite3.connect(os.path.join(BASE_DIR, "attendance.db"), check_same_thread=False)
 cursor = db.cursor()
 
 # ---------------- TABLES ---------------- #
@@ -30,8 +32,6 @@ CREATE TABLE IF NOT EXISTS attendance(
 )
 """)
 
-# ---------------- ADMIN TABLE ---------------- #
-
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS admin(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS admin(
 )
 """)
 
-# create default admin (only once)
+# default admin
 cursor.execute("SELECT * FROM admin")
 if not cursor.fetchone():
     cursor.execute("INSERT INTO admin(username, password) VALUES (?,?)",
@@ -75,7 +75,7 @@ def register():
 
     return render_template("register.html")
 
-# ---------------- LOGIN ---------------- #
+# ---------------- STUDENT LOGIN ---------------- #
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -94,7 +94,6 @@ def login():
         if user:
             session['student_id'] = user[0]
             session['name'] = user[1]
-            session['role'] = "student"
             return redirect('/dashboard')
 
         return "Invalid Credentials"
@@ -125,30 +124,7 @@ def admin():
 
     return render_template("admin.html")
 
-# ---------------- ADMIN DASHBOARD ---------------- #
-
-@app.route('/admin_dashboard')
-def admin_dashboard():
-
-    if 'admin' not in session:
-        return redirect('/admin')
-
-    cursor.execute("SELECT id, name, email FROM students")
-    students = cursor.fetchall()
-
-    cursor.execute("""
-    SELECT students.name, students.email, attendance.attendance_date, attendance.status
-    FROM attendance
-    JOIN students ON attendance.student_id = students.id
-    ORDER BY attendance.attendance_date DESC
-    """)
-    attendance = cursor.fetchall()
-
-    return render_template("admin_dashboard.html",
-                           students=students,
-                           attendance=attendance)
-
-# ---------------- DASHBOARD ---------------- #
+# ---------------- STUDENT DASHBOARD ---------------- #
 
 @app.route('/dashboard')
 def dashboard():
@@ -185,9 +161,7 @@ def mark():
     WHERE student_id=? AND attendance_date=?
     """, (student_id, today))
 
-    already = cursor.fetchone()
-
-    if not already:
+    if not cursor.fetchone():
         cursor.execute("""
         INSERT INTO attendance(student_id, attendance_date, status)
         VALUES (?, ?, ?)
@@ -195,6 +169,41 @@ def mark():
         db.commit()
 
     return redirect('/dashboard')
+
+# ---------------- ADMIN DASHBOARD ---------------- #
+
+@app.route('/admin_dashboard')
+def admin_dashboard():
+
+    if 'admin' not in session:
+        return redirect('/admin')
+
+    cursor.execute("SELECT id, name, email FROM students")
+    students = cursor.fetchall()
+
+    return render_template("admin_dashboard.html", students=students)
+
+# ---------------- FULL ATTENDANCE VIEW (IMPORTANT) ---------------- #
+
+@app.route('/admin_attendance')
+def admin_attendance():
+
+    if 'admin' not in session:
+        return redirect('/admin')
+
+    cursor.execute("""
+    SELECT students.name,
+           students.email,
+           attendance.attendance_date,
+           attendance.status
+    FROM attendance
+    JOIN students ON attendance.student_id = students.id
+    ORDER BY attendance.attendance_date DESC
+    """)
+
+    records = cursor.fetchall()
+
+    return render_template("admin_attendance.html", records=records)
 
 # ---------------- LOGOUT ---------------- #
 
