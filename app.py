@@ -82,8 +82,8 @@ def register():
 
         conn.execute(
             """
-            INSERT INTO students(name, email)
-            VALUES (?, ?)
+            INSERT INTO students(name,email)
+            VALUES(?,?)
             """,
             (name, email)
         )
@@ -156,8 +156,8 @@ def mark(id):
         """
         SELECT *
         FROM attendance
-        WHERE student_id = ?
-        AND att_date = ?
+        WHERE student_id=?
+        AND att_date=?
         """,
         (id, today)
     ).fetchone()
@@ -167,10 +167,14 @@ def mark(id):
         conn.execute(
             """
             INSERT INTO attendance
-            (student_id, att_date, status)
-            VALUES (?, ?, ?)
+            (student_id,att_date,status)
+            VALUES (?,?,?)
             """,
-            (id, today, "Present")
+            (
+                id,
+                today,
+                "Present"
+            )
         )
 
         conn.commit()
@@ -228,8 +232,8 @@ def admin():
             """
             SELECT *
             FROM admin
-            WHERE username = ?
-            AND password = ?
+            WHERE username=?
+            AND password=?
             """,
             (username, password)
         ).fetchone()
@@ -265,7 +269,7 @@ def admin_dashboard():
 
     selected_date = request.args.get('date')
 
-    if selected_date and selected_date.strip() != "":
+    if selected_date:
 
         attendance_data = conn.execute(
             """
@@ -275,7 +279,7 @@ def admin_dashboard():
             FROM attendance
             JOIN students
             ON students.id = attendance.student_id
-            WHERE attendance.att_date = ?
+            WHERE attendance.att_date=?
             ORDER BY attendance.att_date DESC
             """,
             (selected_date,)
@@ -285,7 +289,7 @@ def admin_dashboard():
             """
             SELECT COUNT(DISTINCT student_id)
             FROM attendance
-            WHERE att_date = ?
+            WHERE att_date=?
             """,
             (selected_date,)
         ).fetchone()[0]
@@ -371,6 +375,30 @@ def allattendance():
         result += f"{row['name']} | {row['att_date']} | {row['status']}<br>"
 
     return result
+
+
+# ==========================
+# DEBUG
+# ==========================
+
+@app.route('/debug')
+def debug():
+
+    conn = get_db()
+
+    students = conn.execute(
+        "SELECT COUNT(*) FROM students"
+    ).fetchone()[0]
+
+    attendance = conn.execute(
+        "SELECT COUNT(*) FROM attendance"
+    ).fetchone()[0]
+
+    return f"""
+    Students = {students}
+    <br><br>
+    Attendance = {attendance}
+    """
 
 
 # ==========================
