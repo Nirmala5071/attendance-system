@@ -6,34 +6,57 @@ def admin_dashboard():
 
     conn = get_db()
 
-    # Total Students
-
     total_students = conn.execute(
-        """
-        SELECT COUNT(*)
-        FROM students
-        """
+        "SELECT COUNT(*) FROM students"
     ).fetchone()[0]
 
-    # Total Attendance Records
+    selected_date = request.args.get('date')
 
-    total_attendance = conn.execute(
-        """
-        SELECT COUNT(*)
-        FROM attendance
-        """
-    ).fetchone()[0]
+    if selected_date:
 
-    # Unique Students Present
+        present_today = conn.execute(
+            """
+            SELECT COUNT(DISTINCT student_id)
+            FROM attendance
+            WHERE att_date=?
+            """,
+            (selected_date,)
+        ).fetchone()[0]
 
-    present_today = conn.execute(
-        """
-        SELECT COUNT(DISTINCT student_id)
-        FROM attendance
-        """
-    ).fetchone()[0]
+        attendance = conn.execute(
+            """
+            SELECT students.name,
+                   attendance.att_date,
+                   attendance.status
+            FROM attendance
+            JOIN students
+            ON students.id=attendance.student_id
+            WHERE attendance.att_date=?
+            ORDER BY attendance.att_date DESC
+            """,
+            (selected_date,)
+        ).fetchall()
 
-    # Prevent count > total students
+    else:
+
+        present_today = conn.execute(
+            """
+            SELECT COUNT(DISTINCT student_id)
+            FROM attendance
+            """
+        ).fetchone()[0]
+
+        attendance = conn.execute(
+            """
+            SELECT students.name,
+                   attendance.att_date,
+                   attendance.status
+            FROM attendance
+            JOIN students
+            ON students.id=attendance.student_id
+            ORDER BY attendance.att_date DESC
+            """
+        ).fetchall()
 
     if present_today > total_students:
         present_today = total_students
@@ -51,27 +74,18 @@ def admin_dashboard():
 
         attendance_percentage = 0
 
+    total_attendance = conn.execute(
+        """
+        SELECT COUNT(*)
+        FROM attendance
+        """
+    ).fetchone()[0]
+
     students = conn.execute(
         """
         SELECT *
         FROM students
         ORDER BY id DESC
-        """
-    ).fetchall()
-
-    attendance = conn.execute(
-        """
-        SELECT
-        students.name,
-        attendance.att_date,
-        attendance.status
-
-        FROM attendance
-
-        JOIN students
-        ON students.id = attendance.student_id
-
-        ORDER BY attendance.att_date DESC
         """
     ).fetchall()
 
