@@ -1,15 +1,18 @@
 <!DOCTYPE html>
+
 <html>
 
 <head>
 
-    <title>Admin Dashboard</title>
+```
+<title>Admin Dashboard</title>
 
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-          rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet">
 
-    <link rel="stylesheet"
-          href="{{ url_for('static', filename='style.css') }}">
+<link rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}">
+```
 
 </head>
 
@@ -17,333 +20,394 @@
 
 <div class="container mt-4">
 
-    <!-- Header -->
+```
+<!-- College Header -->
 
-    <div class="header">
+<div class="card shadow-lg border-0 mb-4">
+
+    <div class="card-body text-center bg-dark text-white">
 
         <h1>🎓 SJC Institute of Technology</h1>
 
-        <h3>Student Attendance Management System</h3>
+        <h4>Student Attendance Management System</h4>
 
         <p>Welcome Administrator</p>
 
     </div>
 
-    <!-- Quick Actions -->
+</div>
 
-    <div class="quick-actions">
+<!-- Quick Actions -->
 
-        <h3>⚡ Quick Actions</h3>
+<div class="card shadow p-4 mb-4">
 
-        <div class="d-flex gap-3 flex-wrap">
+    <h3>⚡ Quick Actions</h3>
 
-            <a href="/register"
-               class="btn btn-success">
+    <div class="d-flex gap-3 flex-wrap">
 
-                Register Student
+        <a href="/register" class="btn btn-success">
+            ➕ Register Student
+        </a>
 
-            </a>
+        <a href="/attendance" class="btn btn-primary">
+            ✅ Mark Attendance
+        </a>
 
-            <a href="/attendance"
-               class="btn btn-primary">
+        <a href="/students" class="btn btn-info">
+            👨‍🎓 Student List
+        </a>
 
-                Mark Attendance
+        <a href="/reports" class="btn btn-warning">
+            📊 Reports
+        </a>
 
-            </a>
+    </div>
 
-            <a href="/students"
-               class="btn btn-info">
+</div>
 
-                Student List
+<!-- Statistics -->
 
-            </a>
+<div class="row mb-4">
 
-            <a href="/reports"
-               class="btn btn-warning">
+    <div class="col-md-3">
 
-                Reports
+        <div class="card bg-primary text-white shadow text-center p-4">
 
-            </a>
+            <h5>Total Students</h5>
+
+            <h1>{{total_students}}</h1>
 
         </div>
 
     </div>
 
-    <!-- Statistics -->
+    <div class="col-md-3">
 
-    <div class="row mb-4">
+        <div class="card bg-success text-white shadow text-center p-4">
 
-        <div class="col-md-3">
+            <h5>Present Today</h5>
 
-            <div class="stat-card blue">
-
-                <h4>Total Students</h4>
-
-                <h1>{{total_students}}</h1>
-
-            </div>
-
-        </div>
-
-        <div class="col-md-3">
-
-            <div class="stat-card green">
-
-                <h4>Present Today</h4>
-
-                <h1>{{present_today}}</h1>
-
-            </div>
-
-        </div>
-
-        <div class="col-md-3">
-
-            <div class="stat-card red">
-
-                <h4>Absent Today</h4>
-
-                <h1>{{absent_today}}</h1>
-
-            </div>
-
-        </div>
-
-        <div class="col-md-3">
-
-            <div class="stat-card orange">
-
-                <h4>Attendance %</h4>
-
-                <h1>{{attendance_percentage}}%</h1>
-
-            </div>
+            <h1>{{present_today}}</h1>
 
         </div>
 
     </div>
 
-    <!-- Summary -->
+    <div class="col-md-3">
 
-    <div class="alert alert-success">
+        <div class="card bg-danger text-white shadow text-center p-4">
 
-        <h4>📊 Attendance Summary</h4>
+            <h5>Absent Today</h5>
+
+            <h1>{{absent_today}}</h1>
+
+        </div>
+
+    </div>
+
+    <div class="col-md-3">
+
+        <div class="card bg-warning text-dark shadow text-center p-4">
+
+            <h5>Attendance %</h5>
+
+            <h1>{{attendance_percentage}}%</h1>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- Dashboard Overview -->
+
+<div class="card shadow mb-4">
+
+    <div class="card-body text-center">
+
+        <h3>📈 Dashboard Overview</h3>
 
         <p>
 
             Total Students :
             <b>{{total_students}}</b>
 
-            <br>
+            |
 
-            Present Students :
+            Present :
             <b>{{present_today}}</b>
 
-            <br>
+            |
 
-            Absent Students :
+            Absent :
             <b>{{absent_today}}</b>
 
-            <br>
+            |
 
-            Attendance Percentage :
+            Attendance :
             <b>{{attendance_percentage}}%</b>
 
         </p>
 
     </div>
 
-    <!-- Registered Students -->
+</div>
 
-    <div class="card shadow p-3 mb-4">
+<!-- System Information -->
 
-        <h3>👨‍🎓 Registered Students</h3>
+<div class="card shadow mb-4">
 
-        <table class="table table-bordered">
+    <div class="card-header bg-info text-white">
 
-            <thead>
-
-                <tr>
-
-                    <th>ID</th>
-
-                    <th>Name</th>
-
-                    <th>Email</th>
-
-                </tr>
-
-            </thead>
-
-            <tbody>
-
-                {% for s in students %}
-
-                <tr>
-
-                    <td>{{s.id}}</td>
-
-                    <td>{{s.name}}</td>
-
-                    <td>{{s.email}}</td>
-
-                </tr>
-
-                {% endfor %}
-
-            </tbody>
-
-        </table>
+        <h4>ℹ️ System Information</h4>
 
     </div>
 
-    <!-- Search Attendance -->
+    <div class="card-body">
 
-    <div class="card shadow p-3 mb-4">
+        <p>
+            Project : Student Attendance Management System
+        </p>
 
-        <h3>📅 Search Attendance By Date</h3>
+        <p>
+            Technology : Flask + SQLite + Bootstrap
+        </p>
 
-        <form action="/admin_dashboard" method="GET">
+        <p>
+            Purpose : Digital Attendance Tracking
+        </p>
 
-            <div class="row">
+    </div>
 
-                <div class="col-md-4">
+</div>
 
-                    <input
-                        type="date"
-                        name="date"
-                        class="form-control">
+<!-- Attendance Summary -->
 
-                </div>
+<div class="alert alert-success">
 
-                <div class="col-md-2">
+    <h4>📊 Attendance Summary</h4>
 
-                    <button
-                        type="submit"
-                        class="btn btn-primary">
+    <p>
 
-                        Search
+        Total Students :
+        <b>{{total_students}}</b>
 
-                    </button>
+        <br>
 
-                </div>
+        Present Students :
+        <b>{{present_today}}</b>
+
+        <br>
+
+        Absent Students :
+        <b>{{absent_today}}</b>
+
+        <br>
+
+        Attendance Percentage :
+        <b>{{attendance_percentage}}%</b>
+
+    </p>
+
+</div>
+
+<!-- Registered Students -->
+
+<div class="card shadow p-3 mb-4">
+
+    <h3>👨‍🎓 Registered Students</h3>
+
+    <table class="table table-bordered">
+
+        <thead>
+
+            <tr>
+
+                <th>ID</th>
+                <th>Name</th>
+                <th>Email</th>
+
+            </tr>
+
+        </thead>
+
+        <tbody>
+
+            {% for s in students %}
+
+            <tr>
+
+                <td>{{s.id}}</td>
+
+                <td>{{s.name}}</td>
+
+                <td>{{s.email}}</td>
+
+            </tr>
+
+            {% endfor %}
+
+        </tbody>
+
+    </table>
+
+</div>
+
+<!-- Search Attendance -->
+
+<div class="card shadow p-3 mb-4">
+
+    <h3>📅 Search Attendance By Date</h3>
+
+    <form action="/admin_dashboard" method="GET">
+
+        <div class="row">
+
+            <div class="col-md-4">
+
+                <input
+                    type="date"
+                    name="date"
+                    class="form-control">
 
             </div>
 
-        </form>
+            <div class="col-md-2">
 
-    </div>
+                <button
+                    type="submit"
+                    class="btn btn-primary">
 
-    <!-- Recent Attendance -->
+                    Search
 
-    <div class="card shadow p-3 mb-4">
+                </button>
 
-        <h3>🕒 Recent Attendance</h3>
+            </div>
 
-        <table class="table">
+        </div>
 
-            <thead>
+    </form>
 
-                <tr>
+</div>
 
-                    <th>Name</th>
+<!-- Recent Attendance -->
 
-                    <th>Date</th>
+<div class="card shadow p-3 mb-4">
 
-                </tr>
+    <h3>🕒 Recent Attendance</h3>
 
-            </thead>
+    <table class="table">
 
-            <tbody>
+        <thead>
 
-                {% for a in attendance[:5] %}
+            <tr>
 
-                <tr>
+                <th>Name</th>
 
-                    <td>{{a.name}}</td>
+                <th>Date</th>
 
-                    <td>{{a.att_date}}</td>
+            </tr>
 
-                </tr>
+        </thead>
 
-                {% endfor %}
+        <tbody>
 
-            </tbody>
+            {% for a in attendance[:5] %}
 
-        </table>
+            <tr>
 
-    </div>
+                <td>{{a.name}}</td>
 
-    <!-- Attendance Records -->
+                <td>{{a.att_date}}</td>
 
-    <div class="card shadow p-3 mb-4">
+            </tr>
 
-        <h3>📋 Attendance Records</h3>
+            {% endfor %}
 
-        <table class="table table-bordered">
+        </tbody>
 
-            <thead>
+    </table>
 
-                <tr>
+</div>
 
-                    <th>Student Name</th>
+<!-- Attendance Records -->
 
-                    <th>Date</th>
+<div class="card shadow p-3 mb-4">
 
-                    <th>Status</th>
+    <h3>📋 Attendance Records</h3>
 
-                </tr>
+    <table class="table table-bordered">
 
-            </thead>
+        <thead>
 
-            <tbody>
+            <tr>
 
-                {% for a in attendance %}
+                <th>Student Name</th>
 
-                <tr>
+                <th>Date</th>
 
-                    <td>{{a.name}}</td>
+                <th>Status</th>
 
-                    <td>{{a.att_date}}</td>
+            </tr>
 
-                    <td>
+        </thead>
 
-                        <span class="badge bg-success">
+        <tbody>
 
-                            {{a.status}}
+            {% for a in attendance %}
 
-                        </span>
+            <tr>
 
-                    </td>
+                <td>{{a.name}}</td>
 
-                </tr>
+                <td>{{a.att_date}}</td>
 
-                {% endfor %}
+                <td>
 
-            </tbody>
+                    <span class="badge bg-success">
 
-        </table>
+                        {{a.status}}
 
-    </div>
+                    </span>
 
-    <!-- Logout -->
+                </td>
 
-    <div class="text-center">
+            </tr>
 
-        <a href="/logout"
-           class="btn btn-danger">
+            {% endfor %}
 
-            Logout
+        </tbody>
 
-        </a>
+    </table>
 
-    </div>
+</div>
 
-    <div class="footer">
+<!-- Logout -->
 
-        Developed By Nirmala Reddy
+<div class="text-center mb-4">
 
-    </div>
+    <a href="/logout"
+       class="btn btn-danger">
+
+        Logout
+
+    </a>
+
+</div>
+
+<!-- Footer -->
+
+<footer
+class="text-center p-3 bg-dark text-white rounded">
+
+    Developed By Nirmala Reddy
+
+    <br>
+
+    Student Attendance Management System
+
+</footer>
+```
 
 </div>
 
